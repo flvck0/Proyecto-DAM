@@ -72,4 +72,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.compose.material:material-icons-extended-android:1.6.8")
 
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
 }
