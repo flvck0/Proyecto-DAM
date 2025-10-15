@@ -14,7 +14,11 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun SettingsScreen(onLogout: () -> Unit) {
+fun SettingsScreen(
+    darkTheme: Boolean,
+    onToggleTheme: (Boolean) -> Unit,
+    onLogout: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -28,8 +32,21 @@ fun SettingsScreen(onLogout: () -> Unit) {
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
+        // 🔦 NUEVO: Switch para cambiar entre tema claro y oscuro
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Tema oscuro")
+            Switch(
+                checked = darkTheme,
+                onCheckedChange = { onToggleTheme(it) }
+            )
+        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
 
         Card(
             modifier = Modifier.fillMaxWidth().clickable { /* Acción: Mostrar diálogo de info */ },
