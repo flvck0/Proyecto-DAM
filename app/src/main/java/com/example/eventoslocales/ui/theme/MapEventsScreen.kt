@@ -14,8 +14,6 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,11 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.eventoslocales.model.Event
 import com.example.eventoslocales.ui.theme.viewmodel.EventsViewModel
+import com.example.eventoslocales.ui.theme.viewmodel.UserLocation
 
 @Composable
 fun MapEventsScreen(
     viewModel: EventsViewModel,
-    onLogout: () -> Unit
+    onOpenDetail: (Int) -> Unit
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
@@ -44,19 +43,20 @@ fun MapEventsScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Column(modifier = Modifier.fillMaxSize()) {
-
         if (isLandscape) {
             Row(modifier = Modifier.fillMaxSize()) {
                 MapSimulation(
                     userLocation = userLocation,
-                    events = events,
                     selectedEvent = selectedEvent,
                     modifier = Modifier.weight(1f)
                 )
                 EventsList(
                     events = events,
                     isLoading = isLoading,
-                    onEventClick = { selectedEvent = it },
+                    onEventClick = { event ->
+                        selectedEvent = event
+                        onOpenDetail(event.id)
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -64,14 +64,16 @@ fun MapEventsScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 MapSimulation(
                     userLocation = userLocation,
-                    events = events,
                     selectedEvent = selectedEvent,
                     modifier = Modifier.weight(0.7f)
                 )
                 EventsList(
                     events = events,
                     isLoading = isLoading,
-                    onEventClick = { selectedEvent = it },
+                    onEventClick = { event ->
+                        selectedEvent = event
+                        onOpenDetail(event.id)
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -95,36 +97,48 @@ fun EventsList(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        } else if (events.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text("No se encontraron eventos cercanos.", textAlign = TextAlign.Center)
+            events.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No se encontraron eventos cercanos.", textAlign = TextAlign.Center)
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(events) { event ->
-                    EventCard(
-                        event = event,
-                        onEventClick = onEventClick
-                    )
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(events) { event ->
+                        EventCard(
+                            event = event,
+                            onEventClick = onEventClick
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-
 @Composable
 fun MapSimulation(
-    userLocation: com.example.eventoslocales.ui.theme.viewmodel.UserLocation,
-    events: List<Event>,
+    userLocation: UserLocation,
     selectedEvent: Event?,
     modifier: Modifier = Modifier
 ) {
@@ -192,7 +206,10 @@ fun EventCard(event: Event, onEventClick: (Event) -> Unit) {
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (event.isFeatured) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface
+            containerColor = if (event.isFeatured)
+                MaterialTheme.colorScheme.tertiaryContainer
+            else
+                MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -210,7 +227,9 @@ fun EventCard(event: Event, onEventClick: (Event) -> Unit) {
                 icon,
                 contentDescription = event.category,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp).padding(end = 8.dp)
+                modifier = Modifier
+                    .size(36.dp)
+                    .padding(end = 8.dp)
             )
 
             Spacer(modifier = Modifier.width(8.dp))
