@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 
 data class UserLocation(val lat: Double, val lon: Double)
 
-
 class EventsViewModel(
     private val repository: EventsRepository = EventsRepository()
 ) : ViewModel() {
@@ -28,7 +27,6 @@ class EventsViewModel(
         loadEvents()
     }
 
-
     fun loadEvents() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -42,5 +40,9 @@ class EventsViewModel(
                 _isLoading.value = false
             }
         }
+    }
+
+    fun getEventById(id: Int): Event? {
+        return events.value.firstOrNull { it.id == id }
     }
 }

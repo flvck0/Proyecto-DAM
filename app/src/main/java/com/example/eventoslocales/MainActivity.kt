@@ -34,12 +34,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.eventoslocales.data.SessionPrefs
 import com.example.eventoslocales.data.ThemePrefs
 import com.example.eventoslocales.ui.theme.AppTheme
+import com.example.eventoslocales.ui.theme.EventDetailScreen
 import com.example.eventoslocales.ui.theme.LoginScreen
 import com.example.eventoslocales.ui.theme.MapEventsScreen
 import com.example.eventoslocales.ui.theme.SettingsScreen
@@ -51,6 +54,10 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object MapEvents : Screen("map_events")
     object Settings : Screen("settings")
+
+    object EventDetail : Screen("event_detail/{eventId}") {
+        fun route(eventId: Int) = "event_detail/$eventId"
+    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -76,7 +83,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = this@MainActivity
             val scope = rememberCoroutineScope()
-
 
             val darkTheme by ThemePrefs.darkThemeFlow(context).collectAsStateWithLifecycle(false)
             val loggedIn by SessionPrefs.loggedInFlow(context).collectAsStateWithLifecycle(false)
@@ -122,14 +128,13 @@ fun AppNavigation(
             LoginScreen(
                 viewModel = authViewModel,
                 onLoginSuccess = {
-                    onSetLoggedIn(true) // recuerda sesión
+                    onSetLoggedIn(true)
                     navController.navigate(Screen.MapEvents.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
             )
         }
-
 
         composable(Screen.MapEvents.route) {
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -173,18 +178,12 @@ fun AppNavigation(
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         MapEventsScreen(
                             viewModel = eventsViewModel,
-                            onLogout = {
-                                onSetLoggedIn(false) // olvida sesión
-                                navController.navigate(Screen.Login.route) {
-                                    popUpTo(Screen.MapEvents.route) { inclusive = true }
-                                }
-                            }
+                            onOpenDetail = { id -> navController.navigate(Screen.EventDetail.route(id)) }
                         )
                     }
                 }
             }
         }
-
 
         composable(Screen.Settings.route) {
             SettingsScreen(
@@ -197,6 +196,23 @@ fun AppNavigation(
                     }
                 }
             )
+        }
+
+        composable(
+            route = Screen.EventDetail.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId") ?: return@composable
+            val event = eventsViewModel.getEventById(eventId)
+
+            if (event != null) {
+                EventDetailScreen(
+                    event = event,
+                    onBack = { navController.popBackStack() }
+                )
+            } else {
+                Text("Evento no encontrado")
+            }
         }
     }
 }
