@@ -1,8 +1,8 @@
 package com.example.eventoslocales.ui.theme
 
 import android.content.res.Configuration
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +26,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.eventoslocales.model.Event
 import com.example.eventoslocales.ui.theme.viewmodel.EventsViewModel
 import com.example.eventoslocales.ui.theme.viewmodel.UserLocation
+
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
 fun MapEventsScreen(
@@ -42,12 +50,20 @@ fun MapEventsScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+
+    val handleEventClick: (Event) -> Unit = { event ->
+        selectedEvent = event
+        onOpenDetail(event.id)
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         if (isLandscape) {
             Row(modifier = Modifier.fillMaxSize()) {
-                MapSimulation(
+                GoogleMapComposable(
                     userLocation = userLocation,
+                    events = events,
                     selectedEvent = selectedEvent,
+                    onMarkerClick = handleEventClick,
                     modifier = Modifier.weight(1f)
                 )
                 EventsList(
@@ -62,11 +78,23 @@ fun MapEventsScreen(
             }
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
-                MapSimulation(
-                    userLocation = userLocation,
-                    selectedEvent = selectedEvent,
-                    modifier = Modifier.weight(0.7f)
-                )
+                Card(
+                    modifier = Modifier
+                        .weight(0.7f)
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    GoogleMapComposable(
+                        userLocation = userLocation,
+                        events = events,
+                        selectedEvent = selectedEvent,
+                        onMarkerClick = handleEventClick,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
                 EventsList(
                     events = events,
                     isLoading = isLoading,
@@ -80,6 +108,74 @@ fun MapEventsScreen(
         }
     }
 }
+
+
+@Composable
+fun GoogleMapComposable(
+    userLocation: UserLocation,
+    events: List<Event>,
+    selectedEvent: Event?,
+    onMarkerClick: (Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val userLatLng = LatLng(userLocation.lat, userLocation.lon)
+
+    val centerLatLng = if (events.isNotEmpty()) {
+        userLatLng
+    } else {
+        userLatLng
+    }
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(centerLatLng, 12f)
+    }
+
+    LaunchedEffect(selectedEvent) {
+        selectedEvent?.let { event ->
+            val eventLatLng = LatLng(event.latitude, event.longitude)
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(eventLatLng, 15f), // Zoom más cercano
+                durationMs = 800
+            )
+        }
+    }
+
+    val isSystemInDarkTheme = isSystemInDarkTheme()
+    val mapProperties by remember {
+        mutableStateOf(MapProperties(
+            isMyLocationEnabled = true,
+
+        ))
+    }
+
+    GoogleMap(
+        modifier = modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState,
+        properties = mapProperties
+    ) {
+        Marker(
+            state = MarkerState(position = userLatLng),
+            title = "Tu Ubicación",
+            snippet = "(${userLocation.lat}, ${userLocation.lon})"
+        )
+
+        events.forEach { event ->
+            val eventLatLng = LatLng(event.latitude, event.longitude)
+
+            Marker(
+                state = MarkerState(position = eventLatLng),
+                title = event.title,
+                snippet = event.description,
+                onInfoWindowClick = {
+                    onMarkerClick(event)
+                    true
+                }
+            )
+        }
+    }
+}
+
+
 
 @Composable
 fun EventsList(
@@ -136,66 +232,6 @@ fun EventsList(
     }
 }
 
-@Composable
-fun MapSimulation(
-    userLocation: UserLocation,
-    selectedEvent: Event?,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFB3E5FC)), // Simulación de mapa
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.LocationOn,
-                    contentDescription = "Tu Ubicación",
-                    tint = Color.Red,
-                    modifier = Modifier.size(48.dp)
-                )
-                Text(
-                    text = "Tu Ubicación\n(${userLocation.lat}, ${userLocation.lon})",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-            }
-
-            selectedEvent?.let { event ->
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(12.dp)
-                        .widthIn(max = 250.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text(
-                            text = event.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = event.category,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun EventCard(event: Event, onEventClick: (Event) -> Unit) {

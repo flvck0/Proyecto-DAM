@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">eventoslocales</string>
+    <string name="google_maps_key" translatable="false">AIzaSyDMqxRA4-wRQj67a55DC4QpbvJztzT2USE</string>
 </resources>

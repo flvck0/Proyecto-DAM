@@ -1,6 +1,7 @@
 package com.example.eventoslocales.ui.theme
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.CalendarContract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import com.example.eventoslocales.model.Event
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,22 +40,29 @@ fun EventDetailScreen(
 ) {
     val context = LocalContext.current
 
-    fun openMaps() {
-        // Usamos KTX: String.toUri()
-        val uri = "geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}(${event.title})".toUri()
+
+    fun openMapsForNavigation() {
+        val uri = Uri.parse("google.navigation:q=${event.latitude},${event.longitude}")
+
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            // Si Maps no está, el chooser igual permitirá otras apps compatibles
             setPackage("com.google.android.apps.maps")
         }
-        context.startActivity(intent)
+
+        if (intent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intent)
+        } else {
+            val webUri = Uri.parse("http://maps.google.com/maps?daddr=${event.latitude},${event.longitude}")
+            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+        }
     }
 
     fun share() {
         val text = buildString {
+            appendLine("¡No te pierdas este evento!")
             appendLine("Evento: ${event.title}")
             appendLine("Categoría: ${event.category}")
             if (event.description.isNotBlank()) appendLine("Descripción: ${event.description}")
-            appendLine("Ubicación: ${event.latitude}, ${event.longitude}")
+            appendLine("Ubicación (Lat, Lon): ${event.latitude}, ${event.longitude}")
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
@@ -69,6 +76,7 @@ fun EventDetailScreen(
             data = CalendarContract.Events.CONTENT_URI
             putExtra(CalendarContract.Events.TITLE, event.title)
             putExtra(CalendarContract.Events.DESCRIPTION, event.description)
+
             putExtra(CalendarContract.Events.EVENT_LOCATION, "${event.latitude}, ${event.longitude}")
         }
         context.startActivity(intent)
@@ -90,7 +98,7 @@ fun EventDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -120,7 +128,7 @@ fun EventDetailScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            Button(onClick = { openMaps() }, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { openMapsForNavigation() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Directions, contentDescription = null)
                 Spacer(Modifier.height(0.dp))
                 Text("Cómo llegar", modifier = Modifier.padding(start = 8.dp))
@@ -140,5 +148,3 @@ fun EventDetailScreen(
         }
     }
 }
-
-

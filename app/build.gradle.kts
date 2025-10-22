@@ -71,7 +71,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.compose.material:material-icons-extended-android:1.6.8")
-
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:3.1.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
 }
