@@ -23,29 +23,42 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.eventoslocales.ui.theme.viewmodel.AuthViewModel
 
+/**
+ * Pantalla de Login de la aplicación.
+ *
+ * Decisiones clave:
+ * - Compose maneja el estado de los campos (email, contraseña, errores) directamente desde el ViewModel.
+ * - Se usa collectAsStateWithLifecycle() para suscribirse de forma segura a Flows del ViewModel.
+ * - Incluye validación básica de contraseña y feedback visual inmediato en el campo.
+ */
 @Composable
 fun LoginScreen(
-    viewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit
+    viewModel: AuthViewModel,        // ViewModel que maneja la lógica de autenticación
+    onLoginSuccess: () -> Unit       // Callback que navega al mapa cuando el login es exitoso
 ) {
+    // Estado reactivo del email controlado por el ViewModel
     val email by viewModel.email.collectAsStateWithLifecycle()
+    // Error general proveniente del ViewModel (por ejemplo, email inválido o credenciales erróneas)
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
+    // Estados locales (solo de UI)
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf<String?>(null) }
 
+    // Validación mínima de contraseña
     fun validatePassword(pwd: String): String? =
-        if (pwd.length < 8) "la contraseña debe tener al menos 8 caracteres." else null
+        if (pwd.length < 8) "La contraseña debe tener al menos 8 caracteres." else null
 
+    // Lógica de login: primero valido localmente, luego delego al ViewModel
     fun handleLogin() {
         passwordError = validatePassword(password)
         if (passwordError == null) {
-            // El ViewModel ya valida el email y gestiona errorMessage
             viewModel.login(onLoginSuccess)
         }
     }
 
+    // Estructura general de la pantalla
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { paddingValues ->
@@ -57,17 +70,18 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Título principal de la pantalla
             Text(
-                text = "Descubre increibles eventos!!",
+                text = "Descubre increíbles eventos!!",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 40.dp)
             )
 
-            // Email
+            // Campo de correo electrónico
             OutlinedTextField(
                 value = email,
-                onValueChange = viewModel::onEmailChange,
+                onValueChange = viewModel::onEmailChange, // Actualiza directamente el estado del ViewModel
                 label = { Text("Correo Electrónico") },
                 leadingIcon = { Icon(Icons.Default.MailOutline, contentDescription = "Email") },
                 keyboardOptions = KeyboardOptions(
@@ -80,7 +94,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Contraseña con validación y mostrar/ocultar
+            // Campo de contraseña con validación y opción de mostrar/ocultar texto
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -97,6 +111,7 @@ fun LoginScreen(
                         )
                     }
                 },
+                // Si el ícono está activo, muestro el texto plano; si no, lo oculto con puntos
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -106,6 +121,7 @@ fun LoginScreen(
                 singleLine = true,
                 isError = passwordError != null,
                 supportingText = {
+                    // Feedback de error dinámico debajo del campo
                     passwordError?.let {
                         Text(text = it, color = MaterialTheme.colorScheme.error)
                     }
@@ -113,7 +129,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Mensaje de error general del ViewModel (por ejemplo email inválido)
+            // Mensaje de error proveniente del ViewModel (por ejemplo, email mal formado)
             if (errorMessage != null) {
                 Text(
                     text = errorMessage!!,
@@ -128,6 +144,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Botón principal de login
             Button(
                 onClick = { handleLogin() },
                 shape = RoundedCornerShape(12.dp),
