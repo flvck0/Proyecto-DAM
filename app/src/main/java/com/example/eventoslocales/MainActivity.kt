@@ -50,11 +50,14 @@ import com.example.eventoslocales.ui.theme.viewmodel.AuthViewModel
 import com.example.eventoslocales.ui.theme.viewmodel.EventsViewModel
 import kotlinx.coroutines.launch
 
+// Navegación declarativa: centralizo las rutas en un sealed class para evitar strings mágicos.
+// Ventaja: autocompletado y menos riesgo de typos en rutas y argumentos.
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object MapEvents : Screen("map_events")
     object Settings : Screen("settings")
 
+    // Ruta con argumento: defino plantilla y helper para construir la ruta tipada.
     object EventDetail : Screen("event_detail/{eventId}") {
         fun route(eventId: Int) = "event_detail/$eventId"
     }
@@ -62,13 +65,19 @@ sealed class Screen(val route: String) {
 
 class MainActivity : ComponentActivity() {
 
+    // Permiso de ubicación: uso el API moderno de Activity Result para pedir FINE_LOCATION.
+    // Decisión: sólo pido permiso, no proceso el boolean aquí; la UI reaccionará según acceso real a ubicación.
     private val locationPermissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _: Boolean -> /* manejar resultado si lo necesitas */ }
+    ) { _: Boolean -> /* puedo loguear o mostrar snack si quisiera */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Política de permisos en arranque:
+        // 1) Si ya está concedido, sigo normal.
+        // 2) Si no, disparo la solicitud. La app funciona; la carga real de eventos cercanos
+        //    dependerá de que el ViewModel/Location layer valide permisos antes de pedir coordenadas.
         fun checkAndRequestPermissions() {
             val granted = ContextCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_FINE_LOCATION
@@ -81,23 +90,31 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermissions()
 
         setContent {
+            // Scope para operaciones suspend (guardar prefs) disparadas desde callbacks de UI.
             val context = this@MainActivity
             val scope = rememberCoroutineScope()
 
+            // Estado de tema y sesión como flows persistidos:
+            // - Los leo con collectAsStateWithLifecycle para respetar lifecycle y evitar leaks/actualizaciones en background.
             val darkTheme by ThemePrefs.darkThemeFlow(context).collectAsStateWithLifecycle(false)
             val loggedIn by SessionPrefs.loggedInFlow(context).collectAsStateWithLifecycle(false)
 
+            // Envuelvo todo en mi tema para mantener tipografía/colores coherentes.
             AppTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Decisión de startDestination en caliente según sesión:
+                    // si hay login persistido salto directo al mapa; si no, voy a la pantalla de login.
                     AppNavigation(
                         startDestination = if (loggedIn) Screen.MapEvents.route else Screen.Login.route,
                         darkTheme = darkTheme,
+                        // Guardado de preferencia de tema: lo hago desde aquí para mantener la UI dumb.
                         onToggleTheme = { newValue ->
                             scope.launch { ThemePrefs.setDarkTheme(context, newValue) }
                         },
+                        // Persisto el estado de login: esto me permite matar el back stack y volver a Login limpio.
                         onSetLoggedIn = { value ->
                             scope.launch { SessionPrefs.setLoggedIn(context, value) }
                         }
@@ -116,7 +133,11 @@ fun AppNavigation(
     onToggleTheme: (Boolean) -> Unit,
     onSetLoggedIn: (Boolean) -> Unit
 ) {
+    // Controller de navegación Compose: una única fuente para navegar entre pantallas.
     val navController = rememberNavController()
+
+    // ViewModels scopeados al NavBackStack (por defecto, a la NavGraph del Compose host).
+    // Decisión: los instancio aquí para compartirlos entre pantallas dentro del mismo NavHost.
     val authViewModel: AuthViewModel = viewModel()
     val eventsViewModel: EventsViewModel = viewModel()
 
@@ -124,19 +145,24 @@ fun AppNavigation(
         navController = navController,
         startDestination = startDestination
     ) {
+        //  Login
         composable(Screen.Login.route) {
+            // Login notifica éxito hacia arriba; aquí marco sesión como iniciada y limpio el back stack.
             LoginScreen(
                 viewModel = authViewModel,
                 onLoginSuccess = {
                     onSetLoggedIn(true)
                     navController.navigate(Screen.MapEvents.route) {
+                        // popUpTo + inclusive elimina Login del back stack para que no se pueda volver con back.
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
             )
         }
 
+        //  Mapa + Drawer
         composable(Screen.MapEvents.route) {
+            // Drawer de Material 3: lo uso para exponer entradas de navegación lateral (ej. Ajustes).
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
 
@@ -150,6 +176,7 @@ fun AppNavigation(
                             modifier = Modifier.padding(16.dp)
                         )
 
+                        // Entrada a Ajustes: navego y cierro el drawer para mantener UX fluida.
                         NavigationDrawerItem(
                             label = { Text("Ajustes") },
                             selected = false,
@@ -163,11 +190,13 @@ fun AppNavigation(
                     }
                 }
             ) {
+                // App bar + content scaffold: patrón estándar de Material.
                 Scaffold(
                     topBar = {
                         TopAppBar(
                             title = { Text("Eventos Locales") },
                             navigationIcon = {
+                                // Icono de hamburguesa abre el drawer.
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Filled.Menu, contentDescription = "Menú")
                                 }
@@ -175,9 +204,11 @@ fun AppNavigation(
                         )
                     }
                 ) { padding ->
+                    // Contenido del mapa: le delego la lógica de cargar/mostrar eventos al EventsViewModel.
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         MapEventsScreen(
                             viewModel = eventsViewModel,
+                            // Navego a detalle usando ruta tipada (evito concatenar strings a mano).
                             onOpenDetail = { id -> navController.navigate(Screen.EventDetail.route(id)) }
                         )
                     }
@@ -185,11 +216,14 @@ fun AppNavigation(
             }
         }
 
+        //  Ajustes
         composable(Screen.Settings.route) {
+            // Ajustes controla tema y permite cerrar sesión desde un solo lugar.
             SettingsScreen(
                 darkTheme = darkTheme,
                 onToggleTheme = onToggleTheme,
                 onLogout = {
+                    // Cerrar sesión: limpio flag persistido y regreso a Login vaciando el back stack actual.
                     onSetLoggedIn(false)
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Settings.route) { inclusive = true }
@@ -198,11 +232,16 @@ fun AppNavigation(
             )
         }
 
+        // -------- Detalle de evento (ruta con argumento) --------
         composable(
             route = Screen.EventDetail.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
+            // Obtengo parámetro de navegación de forma segura; si falla, salgo silenciosamente del composable.
             val eventId = backStackEntry.arguments?.getInt("eventId") ?: return@composable
+
+            // Decisión: busco el evento en el VM para mantener una única fuente de datos en memoria
+            // y evitar pasar objetos pesados por navegación.
             val event = eventsViewModel.getEventById(eventId)
 
             if (event != null) {
@@ -211,6 +250,8 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() }
                 )
             } else {
+                // Fallback de UX simple: si no encuentro el evento (p.ej. lista no cargada),
+                // muestro mensaje. Alternativa: podría disparar una carga puntual por ID.
                 Text("Evento no encontrado")
             }
         }

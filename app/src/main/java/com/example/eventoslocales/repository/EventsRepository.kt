@@ -1,8 +1,22 @@
 package com.example.eventoslocales.repository
+
 import com.example.eventoslocales.model.Event
 import kotlinx.coroutines.delay
 
+/**
+ * Repositorio responsable de proveer los eventos cercanos.
+ *
+ * Actualmente trabaja con datos mockeados (simulados),
+ * pero su estructura ya está pensada para poder reemplazarse fácilmente
+ * por una fuente real, como una API REST o una base de datos local.
+ *
+ * Decisión: mantengo la capa de datos separada de la UI y del ViewModel
+ * para cumplir con el principio de separación de responsabilidades (Clean Architecture).
+ */
 class EventsRepository {
+
+    // Lista mock de eventos. Sirve como base temporal mientras no hay backend real.
+    // Cada evento tiene coordenadas, categoría y un flag "isFeatured" para ordenarlos en la UI.
     private val mockEvents = listOf(
         Event(
             id = 1,
@@ -48,9 +62,18 @@ class EventsRepository {
         )
     )
 
-
+    /**
+     * Devuelve la lista de eventos disponibles.
+     *
+     * - Uso `suspend` porque en el futuro este método podría hacer una llamada real a la red.
+     * - Agrego un pequeño `delay()` para simular la latencia de una petición HTTP.
+     * - Actualmente retorna la lista mockeada definida arriba.
+     *
+     * Ventaja: el ViewModel no necesita saber si los datos vienen de una API o de una lista local,
+     * solo se suscribe al resultado y la UI reacciona.
+     */
     suspend fun getNearbyEvents(): List<Event> {
-        delay(500)
+        delay(500) // Simulo una carga de datos o tiempo de red
         return mockEvents
     }
 }
