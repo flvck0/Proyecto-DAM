@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.eventoslocales.model.Event
 import com.example.eventoslocales.ui.theme.viewmodel.EventsViewModel
@@ -44,8 +43,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.filled.Star
 
-
-//  Dimensiones y helpers
 private object Dimens {
     val screenPadding = 16.dp
     val sectionGap = 16.dp
@@ -61,15 +58,11 @@ private fun categoryColor(category: String, colors: ColorScheme): Color =
         "Música" -> colors.primary
         "Comida" -> colors.tertiary
         "Deporte" -> colors.secondary
+        "Arte" -> colors.secondary.copy(alpha = 0.6f)
+        "Educación" -> colors.primary.copy(alpha = 0.6f)
         else -> colors.outline
     }
 
-
-// Pantalla con upgrade visual compatible
-// - Header con gradiente + chips de categorías
-// - Mapa dentro de Card con FAB para “centrar”
-// - Lista con tiles modernos (franja por categoría + chip Destacado)
-//
 @Composable
 fun MapEventsScreen(
     viewModel: EventsViewModel,
@@ -87,7 +80,6 @@ fun MapEventsScreen(
 
     val handleEventClick: (Event) -> Unit = { event ->
         selectedEvent = event
-        // delego la navegación de detalle al caller
         onOpenDetail(event.id)
     }
 
@@ -112,7 +104,7 @@ fun MapEventsScreen(
             ) {
                 MapCard(
                     userLocation = userLocation,
-                    events = events,
+                    events = events.filterByCategory(selectedCategory),
                     selectedEvent = selectedEvent,
                     onMarkerClick = handleEventClick,
                     modifier = Modifier.weight(1f)
@@ -127,12 +119,12 @@ fun MapEventsScreen(
         } else {
             MapCard(
                 userLocation = userLocation,
-                events = events,
+                events = events.filterByCategory(selectedCategory),
                 selectedEvent = selectedEvent,
                 onMarkerClick = handleEventClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.52f) // 52% mapa
+                    .weight(0.52f)
             )
 
             Spacer(Modifier.height(Dimens.sectionGap))
@@ -141,13 +133,12 @@ fun MapEventsScreen(
                 events = events.filterByCategory(selectedCategory),
                 isLoading = isLoading,
                 onEventClick = handleEventClick,
-                modifier = Modifier.weight(0.48f) // 48% lista
+                modifier = Modifier.weight(0.48f)
             )
         }
     }
 }
 
-// Header con gradiente + chips
 @Composable
 private fun HeroHeader(
     selectedCategory: String?,
@@ -162,7 +153,6 @@ private fun HeroHeader(
         Box(
             modifier = Modifier
                 .background(
-                    // gradiente que respeta tema claro/oscuro
                     Brush.verticalGradient(
                         0f to cs.primary.copy(alpha = 0.25f),
                         1f to cs.surfaceVariant.copy(alpha = 0.22f)
@@ -188,6 +178,8 @@ private fun HeroHeader(
                     CategoryChip("Música", selectedCategory == "Música") { onSelectCategory("Música") }
                     CategoryChip("Comida", selectedCategory == "Comida") { onSelectCategory("Comida") }
                     CategoryChip("Deporte", selectedCategory == "Deporte") { onSelectCategory("Deporte") }
+                    CategoryChip("Arte", selectedCategory == "Arte") { onSelectCategory("Arte") }
+                    CategoryChip("Educación", selectedCategory == "Educación") { onSelectCategory("Educación") }
                 }
             }
         }
@@ -206,7 +198,6 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
 private fun List<Event>.filterByCategory(cat: String?): List<Event> =
     if (cat == null) this else this.filter { it.category == cat }
 
-//  Card contenedora del mapa
 @Composable
 private fun MapCard(
     userLocation: UserLocation,
@@ -234,7 +225,7 @@ private fun MapCard(
         }
 
         FloatingActionButton(
-            onClick = { /* noop por compatibilidad; UX de “centrar” visible */ },
+            onClick = { },
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
@@ -246,7 +237,6 @@ private fun MapCard(
     }
 }
 
-// ---------- Google Map con cámara animada ----------
 @Composable
 private fun GoogleMapComposable(
     userLocation: UserLocation,
@@ -257,12 +247,10 @@ private fun GoogleMapComposable(
 ) {
     val userLatLng = LatLng(userLocation.lat, userLocation.lon)
 
-    // Centro inicial en usuario (12f = ciudad)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(userLatLng, 12f)
     }
 
-    // Animo cámara al evento seleccionado (foco visual)
     LaunchedEffect(selectedEvent) {
         selectedEvent?.let { e ->
             val p = LatLng(e.latitude, e.longitude)
@@ -282,14 +270,6 @@ private fun GoogleMapComposable(
         cameraPositionState = cameraPositionState,
         properties = mapProperties
     ) {
-        // Pin usuario
-        Marker(
-            state = MarkerState(position = userLatLng),
-            title = "Tu ubicación",
-            snippet = "(${userLocation.lat}, ${userLocation.lon})"
-        )
-
-        // Pins de eventos
         events.forEach { event ->
             val pos = LatLng(event.latitude, event.longitude)
             Marker(
@@ -305,7 +285,6 @@ private fun GoogleMapComposable(
     }
 }
 
-//  Lista con tiles modernos
 @Composable
 private fun EventsList(
     events: List<Event>,
@@ -370,12 +349,9 @@ private fun EventTile(
 ) {
     val cs = MaterialTheme.colorScheme
     val stripe = categoryColor(event.category, cs)
-
-    // Dorado agradable que funciona en claro/oscuro
     val isDark = isSystemInDarkTheme()
     val amber = if (isDark) Color(0xFFFFD54F) else Color(0xFFFFC107)
 
-    // Usamos Box para poder aplicar un borde condicional con Modifier.border
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -391,10 +367,7 @@ private fun EventTile(
         ElevatedCard(
             shape = RoundedCornerShape(Dimens.cardCorner),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
-            colors = CardDefaults.elevatedCardColors(
-                // Fondo neutro (nada de rosado)
-                containerColor = cs.surface
-            ),
+            colors = CardDefaults.elevatedCardColors(containerColor = cs.surface),
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
@@ -404,7 +377,6 @@ private fun EventTile(
                     .fillMaxWidth()
                     .padding(Dimens.cardPadding)
             ) {
-                // Franja de color (categoría)
                 Box(
                     modifier = Modifier
                         .width(6.dp)
@@ -415,11 +387,12 @@ private fun EventTile(
 
                 Spacer(Modifier.width(12.dp))
 
-                // Icono en “burbuja”
                 val icon: ImageVector = when (event.category) {
                     "Música" -> Icons.Default.DateRange
                     "Comida" -> Icons.Filled.Restaurant
                     "Deporte" -> Icons.Default.SportsSoccer
+                    "Arte" -> Icons.Default.LocationOn
+                    "Educación" -> Icons.Default.LocationOn
                     else -> Icons.Default.LocationOn
                 }
 
@@ -446,7 +419,6 @@ private fun EventTile(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Doy weight al título para que el chip NUNCA se corte
                         Text(
                             event.title,
                             modifier = Modifier.weight(1f),
@@ -477,11 +449,6 @@ private fun EventTile(
     }
 }
 
-/**
- * Chip “Destacado” custom:
- * - Borde dorado con shape pill
- * - Icono estrella + texto
- */
 @Composable
 private fun FeaturedGoldChip(amber: Color) {
     Surface(

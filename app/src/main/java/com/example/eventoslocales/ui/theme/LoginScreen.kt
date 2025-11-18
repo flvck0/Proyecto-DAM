@@ -1,5 +1,7 @@
 package com.example.eventoslocales.ui.theme
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -14,6 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -21,36 +28,34 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.eventoslocales.R
 import com.example.eventoslocales.ui.theme.viewmodel.AuthViewModel
 
 /**
- * Pantalla de Login de la aplicación.
+ * LOGIN PROFESIONAL – Con imagen de fondo, overlay degradado y tarjeta flotante
  *
- * Decisiones clave:
- * - Compose maneja el estado de los campos (email, contraseña, errores) directamente desde el ViewModel.
- * - Se usa collectAsStateWithLifecycle() para suscribirse de forma segura a Flows del ViewModel.
- * - Incluye validación básica de contraseña y feedback visual inmediato en el campo.
+ * Cambios realizados:
+ * ✔ Fondo con foto + blur → da un look tipo Netflix / Instagram
+ * ✔ Overlay con degradado para lectura perfecta
+ * ✔ Tarjeta flotante blanca/negra según tema
+ * ✔ Inputs estilizados con sombra ligera
+ * ✔ Botón ancho, llamativo y moderno
  */
 @Composable
 fun LoginScreen(
-    viewModel: AuthViewModel,        // ViewModel que maneja la lógica de autenticación
-    onLoginSuccess: () -> Unit       // Callback que navega al mapa cuando el login es exitoso
+    viewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit
 ) {
-    // Estado reactivo del email controlado por el ViewModel
     val email by viewModel.email.collectAsStateWithLifecycle()
-    // Error general proveniente del ViewModel (por ejemplo, email inválido o credenciales erróneas)
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    // Estados locales (solo de UI)
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf<String?>(null) }
 
-    // Validación mínima de contraseña
     fun validatePassword(pwd: String): String? =
         if (pwd.length < 8) "La contraseña debe tener al menos 8 caracteres." else null
 
-    // Lógica de login: primero valido localmente, luego delego al ViewModel
     fun handleLogin() {
         passwordError = validatePassword(password)
         if (passwordError == null) {
@@ -58,103 +63,198 @@ fun LoginScreen(
         }
     }
 
-    // Estructura general de la pantalla
-    Scaffold(
+    // Fondo completo con imagen + blur + overlay
+    Box(
         modifier = Modifier.fillMaxSize()
-    ) { paddingValues ->
+    ) {
+
+        // (1) Imagen de fondo
+        Image(
+            painter = painterResource(id = R.drawable.login_bg),
+            contentDescription = "Fondo de eventos",
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(8.dp), // blur suave para estética premium
+            contentScale = ContentScale.Crop
+        )
+
+        // (2) Overlay degradado para hacer legible el contenido
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.85f)
+                        )
+                    )
+                )
+        )
+
+        // (3) Contenido centrado (tarjeta + título)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Título principal de la pantalla
+
+            // Título principal llamativo
             Text(
-                text = "Descubre increíbles eventos!!",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 40.dp)
+                "Descubre increíbles eventos!!",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
             )
 
-            // Campo de correo electrónico
-            OutlinedTextField(
-                value = email,
-                onValueChange = viewModel::onEmailChange, // Actualiza directamente el estado del ViewModel
-                label = { Text("Correo Electrónico") },
-                leadingIcon = { Icon(Icons.Default.MailOutline, contentDescription = "Email") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            // Pequeño subtítulo que “vende” mejor la app
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Conciertos, talleres, ferias y más, todo cerca de ti.",
+                color = Color.White.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Más espacio bajo el subtítulo (separación visual perfecta)
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Campo de contraseña con validación y opción de mostrar/ocultar texto
-            OutlinedTextField(
-                value = password,
-                onValueChange = {
-                    password = it
-                    passwordError = validatePassword(it)
-                },
-                label = { Text("Contraseña") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Contraseña") },
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
-                        )
-                    }
-                },
-                // Si el ícono está activo, muestro el texto plano; si no, lo oculto con puntos
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { handleLogin() }),
-                singleLine = true,
-                isError = passwordError != null,
-                supportingText = {
-                    // Feedback de error dinámico debajo del campo
-                    passwordError?.let {
-                        Text(text = it, color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Mensaje de error proveniente del ViewModel (por ejemplo, email mal formado)
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp), // separación un poco mayor
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.wrapContentWidth()
+            ) {
+                SuggestionChip("Conciertos", scale = 1.1f)
+                SuggestionChip("Gastronomía", scale = 1.1f)
+                SuggestionChip("Deporte", scale = 1.1f)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // Más distancia antes de la tarjeta (equilibrio visual)
+            Spacer(modifier = Modifier.height(30.dp))
 
-            // Botón principal de login
-            Button(
-                onClick = { handleLogin() },
-                shape = RoundedCornerShape(12.dp),
+
+
+            // TARJETA DEL FORMULARIO
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                enabled = email.isNotBlank() && password.isNotBlank() && passwordError == null
+                    .padding(horizontal = 4.dp)
             ) {
-                Text("Ingresar", style = MaterialTheme.typography.titleMedium)
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    // EMAIL
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = viewModel::onEmailChange,
+                        label = { Text("Correo Electrónico") },
+                        leadingIcon = { Icon(Icons.Default.MailOutline, null) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // CONTRASEÑA
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            passwordError = validatePassword(it)
+                        },
+                        label = { Text("Contraseña") },
+                        leadingIcon = { Icon(Icons.Default.Lock, null) },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    if (passwordVisible) Icons.Default.VisibilityOff
+                                    else Icons.Default.Visibility,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible)
+                            VisualTransformation.None else PasswordVisualTransformation(),
+                        singleLine = true,
+                        isError = passwordError != null,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions { handleLogin() },
+                        supportingText = {
+                            passwordError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (errorMessage != null) {
+                        Text(
+                            errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // BOTÓN DE INGRESAR
+                    Button(
+                        onClick = { handleLogin() },
+                        enabled = email.isNotBlank() &&
+                                password.isNotBlank() &&
+                                passwordError == null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Ingresar")
+                    }
+
+                }
             }
         }
     }
 }
+
+@Composable
+private fun SuggestionChip(text: String, scale: Float = 1f) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color.Black.copy(alpha = 0.50f),
+        tonalElevation = 2.dp,
+        modifier = Modifier
+    ) {
+        Text(
+            text = text,
+            color = Color.White.copy(alpha = 0.95f),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .padding(
+                    horizontal = (14 * scale).dp,
+                    vertical = (6 * scale).dp
+                )
+        )
+    }
+}
+
