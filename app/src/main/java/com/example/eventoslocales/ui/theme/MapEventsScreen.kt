@@ -1,11 +1,16 @@
 package com.example.eventoslocales.ui.theme
 
 import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll // Nuevo import para scroll lateral
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState // Nuevo import para estado del scroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +19,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,10 +44,6 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.icons.filled.Star
 
 private object Dimens {
     val screenPadding = 16.dp
@@ -88,7 +90,8 @@ fun MapEventsScreen(
             .fillMaxSize()
             .padding(horizontal = Dimens.screenPadding)
     ) {
-        Spacer(Modifier.height(Dimens.sectionGap))
+        // CAMBIO 1: Reduje el espacio superior para ganar más pantalla (de sectionGap a 8.dp)
+        Spacer(Modifier.height(8.dp))
 
         HeroHeader(
             selectedCategory = selectedCategory,
@@ -139,14 +142,16 @@ fun MapEventsScreen(
     }
 }
 
+// CAMBIO 2: Versión compacta del encabezado
 @Composable
 private fun HeroHeader(
     selectedCategory: String?,
     onSelectCategory: (String?) -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
+
     Surface(
-        shape = RoundedCornerShape(Dimens.cardCorner),
+        shape = RoundedCornerShape(12.dp), // Esquinas un poco más cerradas
         tonalElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -154,26 +159,30 @@ private fun HeroHeader(
             modifier = Modifier
                 .background(
                     Brush.verticalGradient(
-                        0f to cs.primary.copy(alpha = 0.25f),
-                        1f to cs.surfaceVariant.copy(alpha = 0.22f)
+                        0f to cs.primary.copy(alpha = 0.15f),
+                        1f to cs.surfaceVariant.copy(alpha = 0.15f)
                     )
                 )
-                .padding(Dimens.cardPadding)
+                // Padding reducido para compactar altura
+                .padding(vertical = 10.dp, horizontal = 12.dp)
         ) {
             Column {
+                // Título más pequeño (TitleMedium en vez de HeadlineSmall)
                 Text(
                     "Explora eventos cerca de ti",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    "Filtra por categoría o toca un evento para ver más",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = cs.onSurfaceVariant
-                )
-                Spacer(Modifier.height(12.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.chipGap)) {
+                // Se eliminó el subtítulo para ahorrar espacio
+
+                Spacer(Modifier.height(8.dp))
+
+                // Scroll Horizontal habilitado
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.chipGap),
+                    modifier = Modifier.horizontalScroll(rememberScrollState())
+                ) {
                     CategoryChip("Todos", selectedCategory == null) { onSelectCategory(null) }
                     CategoryChip("Música", selectedCategory == "Música") { onSelectCategory("Música") }
                     CategoryChip("Comida", selectedCategory == "Comida") { onSelectCategory("Comida") }
@@ -207,6 +216,7 @@ private fun MapCard(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
+        // 1. El Mapa (Fondo)
         Card(
             shape = RoundedCornerShape(Dimens.cardCorner),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -224,13 +234,18 @@ private fun MapCard(
             )
         }
 
+        // 2. El Botón Flotante (Corregido)
         FloatingActionButton(
-            onClick = { },
+            onClick = { /* Acción para recentrar */ },
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(12.dp)
+                // CAMBIO AQUÍ:
+                // Usamos 'padding' diferenciado.
+                // 'end = 12.dp' lo mantiene pegado a la derecha.
+                // 'bottom = 80.dp' lo sube lo suficiente para no tapar el zoom (-).
+                .padding(end = 12.dp, bottom = 80.dp)
         ) {
             Icon(Icons.Filled.CenterFocusStrong, contentDescription = "Centrar")
         }
